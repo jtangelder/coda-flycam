@@ -51,7 +51,7 @@ function handleKey(event) {
     if (event.keyCode == 27) {
 
         interval = window.clearInterval(interval);
-        gameOver();
+        start();
 
         if (event.preventDefault) event.preventDefault();
         if (event.stopPropagation) event.stopPropagation();
@@ -63,6 +63,8 @@ function handleKey(event) {
         speed = speed * 0.75;
     }
 }
+
+window.addEventListener("keydown", handleKey);
 
 container = document.createElement('div');
 document.body.appendChild(container);
@@ -78,13 +80,71 @@ init();
 reset();
 
 function animate() {
-    if (animType == "loop") {
-        loop();
-    } else if (animType == "demo") {
-        demo();
-    }
+
+    videoFx();
+    loop();
 
     requestAnimationFrame(animate);
+}
+
+
+/**
+ * blend two images into a new imageData
+ * @param   imageData   target
+ * @param   imageData   data1
+ * @param   imageData   data2
+ */
+function differenceAccuracy(target, data1, data2) {
+    if (data1.length != data2.length)
+        return null;
+
+    var i = 0;
+    var length = (data1.length * 0.25);
+    while (i < length) {
+        var average1 = (data1[4*i] + data1[4*i+1] + data1[4*i+2]) / 3;
+        var average2 = (data2[4*i] + data2[4*i+1] + data2[4*i+2]) / 3;
+        var diff = Math.abs(average1 - average2);
+        target[4*i] = diff;
+        target[4*i+1] = diff;
+        target[4*i+2] = diff;
+        target[4*i+3] = diff;
+        ++i;
+    }
+}
+
+
+var lastImageData;
+function videoFx() {
+    var video = videoInput;
+    var canvasFx = canvasVideo;
+    var canvasSrc = canvasVideoSrc;
+
+    if(!video || !canvasSrc || !canvasFx) {
+        return;
+    }
+
+    var contextSource = canvasSrc.getContext('2d');
+    var contextFx = canvasFx.getContext('2d');
+
+    contextSource.drawImage(video, 0, 0, video.width, video.height);
+    var sourceData = contextSource.getImageData(0, 0, video.width, video.height);
+
+    // create an image if the previous image doesn’t exist
+    if (!lastImageData) {
+        lastImageData = contextSource.getImageData(0, 0, video.width, video.height);
+    }
+
+    // create a ImageData instance to receive the blended result
+    var fxData = contextSource.createImageData(video.width, video.height);
+
+    // blend the 2 images
+    differenceAccuracy(fxData.data, sourceData.data, lastImageData.data);
+
+    // draw the result in a canvas
+    contextFx.putImageData(fxData, 0, 0);
+
+    // store the current webcam image
+    lastImageData = sourceData;
 }
 
 function start() {
@@ -95,27 +155,6 @@ function start() {
     maxSpeed = 50;
     initPhase(1);
     animType = "loop";
-
-}
-
-function gameOver() {
-    var startext = [];
-    startext[0] = "START";
-    startext[1] = "RETRY";
-    startext[2] = "ONCE MORE";
-    startext[3] = "AGAIN";
-    startext[4] = "RESTART";
-    bdy.style.backgroundColor = '#000';
-
-    start();
-
-    hiscore = localStorage.getItem("hiscore");
-    if (hiscore == 0 || hiscore == undefined || hiscore == null) hiscore = 0;
-
-    if (hiscore < score && options.opt_invincible == 0) {
-        hiscore = score;
-        localStorage.setItem("hiscore", hiscore);
-    }
 }
 
 function initPhase(ph) {
@@ -182,8 +221,6 @@ function particleRender(context) {
 }
 
 function init() {
-    resetFont();
-
     particles = new Array();
 
     for (var i = 0; i < STARS; i++) {
@@ -197,13 +234,7 @@ function init() {
 
     window.addEventListener('resize', onWindowResize, false);
 
-    animType = "demo";
     animate();
-}
-
-function resetFont() {
-    var wh = window.innerHeight / 17;
-    bdy.style.fontSize = wh + 'px';
 }
 
 function onWindowResize() {
@@ -212,38 +243,27 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    resetFont();
-
     fullscreen = ( window.innerWidth == window.outerWidth )
 
 }
 
 function loop() {
-
     camera.position.x += ( (mouseX / windowHalfX) * 700 - camera.position.x ) * .08;
     camera.position.y += ( -(mouseY / windowHalfY) * 600 - camera.position.y ) * .08;
 
     var loopSpeed = speed;
 
-    if (speed <= 30) {
-        cr = cg = cb = ((speed / 30) * 0.7) + 0.3;
-    } else if (speed > 30) {
-        cr = 1;
-        cg = (40 - speed) / 10;
-        cb = (40 - speed) / 10;
-    }
+    cr = cg = cb = ((speed / 30) * 0.7) + 0.3;
 
     for (var i = 0; i < STARS; i++) {
         particle = particles[ i ];
         particle.position.z += loopSpeed;
 
-        //var color = particles[ i ].materials[ 0 ].color;
         var color = particles[ i ].material.color;
 
         color.r = (particle.position.z / FAR ) * cr;
         color.g = (particle.position.z / FAR ) * cg;
         color.b = (particle.position.z / FAR ) * cb;
-
         if (particle.position.z > FAR) {
             particle.position.z -= FAR;
 
@@ -281,26 +301,13 @@ function loop() {
                     particle.position.x = 1000 * Math.cos(nextFrame / c1);
                     particle.position.y = 1000 * Math.sin(nextFrame / c2);
                     break;
-
-
-            }
-
-        }
-
-        if (options.opt_invincible == 0) {
-            if (Math.abs(particle.position.x - camera.position.x) < SAFE && Math.abs(particle.position.y - camera.position.y) < SAFE && Math.abs(particle.position.z - camera.position.z) < SAFE) {
-                if (collision < 0) {
-                    lives--;
-                }
-                speed = -3;
-                collision = 50;
             }
         }
 
     }
 
     speed += 0.02;
-    maxSpeed = Math.min(maxSpeed + 0.008, 150);
+    maxSpeed = Math.min(maxSpeed + 0.008, 75);
 
     if (speed > maxSpeed) {
         speed = maxSpeed;
@@ -313,61 +320,17 @@ function loop() {
         initPhase(Math.floor(Math.random() * NPHASES) + 1);
     }
 
-    collision--;
-    if (collision > 0) {
-        tmp = Math.floor(Math.random() * collision * 5);
-        bdy.style.backgroundColor = 'rgb(' + tmp + ',' + Math.floor(tmp / 2) + ',0)';
-    } else {
-        bdy.style.backgroundColor = '#000';
-    }
-
     renderer.render(scene, camera);
-
-    if (collision < 0 && lives <= 0) {
-        interval = window.clearInterval(interval);
-        gameOver();
-    }
-
-}
-
-function demo() {
-
-    for (var i = 0; i < STARS; i++) {
-        particle = particles[ i ];
-        particle.position.z += 0.1;
-
-        //var color = particles[ i ].materials[ 0 ].color;
-        var color = particles[ i ].material.color;
-        if (Math.abs(i - collision) < 10) {
-            color.r = (particle.position.z / FAR);
-            color.g = color.b = 0;
-        } else {
-            color.r = color.g = color.b = (particle.position.z / FAR * 0.33);
-        }
-    }
-
-    collision++;
-    if (collision >= STARS) collision = 0;
-
-    renderer.render(scene, camera);
-
 }
 
 // Audun's face tracking magic...
 
 // First, we need a video element
 var videoInput = document.createElement('video');
-videoInput.setAttribute('loop', 'true');
-videoInput.setAttribute('autoplay', 'true');
-videoInput.setAttribute('width', Math.ceil(window.innerHeight * 1.333));
-videoInput.setAttribute('height', window.innerHeight);
-
-videoInput.style.position = 'absolute';
-videoInput.style.top = '0';
-videoInput.style.left = '50%';
-videoInput.style.marginLeft = 0-Math.round(videoInput.offsetWidth / 2) +"px";
-videoInput.style.zIndex = '1000';
-
+videoInput.setAttribute('loop','true');
+videoInput.setAttribute('autoplay','true');
+videoInput.setAttribute('width','320');
+videoInput.setAttribute('height','240');
 document.body.appendChild(videoInput);
 
 // messaging stuff
@@ -389,6 +352,7 @@ function noCamera() {
 }
 
 document.addEventListener('headtrackrStatus', function(e) {
+    console.log(e.status);
     switch (e.status) {
         case 'camera found':
             gUMnCamera();
@@ -407,24 +371,41 @@ document.addEventListener('headtrackrStatus', function(e) {
 
 // Face detection setup
 
+
+// the cross canvas
 var canvasInput = document.createElement('canvas'); // compare
-canvasInput.setAttribute('width', Math.ceil(window.innerHeight * 1.333));
-canvasInput.setAttribute('height', window.innerHeight);
+canvasInput.setAttribute('width', videoInput.clientWidth);
+canvasInput.setAttribute('height', videoInput.clientHeight);
+canvasInput.className = 'canvasInput';
 document.body.appendChild(canvasInput);
 
-var htracker = new headtrackr.Tracker({ smoothing: false, fadeVideo: true, ui: false});
-htracker.init(videoInput, canvasInput);
-htracker.start();
-
-canvasInput.style.position = 'absolute';
-canvasInput.style.top = '0';
-canvasInput.style.left = '50%';
-canvasInput.style.marginLeft = 0-Math.round(canvasInput.offsetWidth / 2) +"px";
 canvasInput.style.zIndex = '1002';
 
 var canvasCtx = canvasInput.getContext('2d');
 canvasCtx.strokeStyle = "#f00";
 canvasCtx.lineWidth = 2;
+
+// the video fx canvas
+var canvasVideo = document.createElement('canvas'); // compare
+canvasVideo.setAttribute('width', videoInput.clientWidth);
+canvasVideo.setAttribute('height', videoInput.clientHeight);
+canvasVideo.className = 'canvasVideo';
+document.body.appendChild(canvasVideo);
+
+var canvasVideoSrc = document.createElement('canvas'); // compare
+canvasVideoSrc.setAttribute('width', videoInput.clientWidth);
+canvasVideoSrc.setAttribute('height', videoInput.clientHeight);
+canvasVideoSrc.className = 'canvasVideoSrc';
+document.body.appendChild(canvasVideoSrc);
+
+var canvasVideoSrcCtx = canvasVideoSrc.getContext('2d');
+canvasVideoSrcCtx.translate(canvasVideoSrc.width, 0);
+canvasVideoSrcCtx.scale(-1, 1);
+
+// tracker
+var htracker = new headtrackr.Tracker({ smoothing: true, fadeVideo: false, ui: false});
+htracker.init(videoInput, canvasInput);
+htracker.start();
 
 var drawIdent = function(cContext, x, y) {
     // normalise values
@@ -437,25 +418,14 @@ var drawIdent = function(cContext, x, y) {
     // clean canvas
     cContext.clearRect(0, 0, canvasInput.width, canvasInput.height);
 
-    // draw rectangle around canvas
-    cContext.strokeRect(0, 0, canvasInput.width, canvasInput.height);
-
-    // draw marker, from x,y position
     cContext.beginPath();
-    cContext.moveTo(x - 5, y);
-    cContext.lineTo(x + 5, y);
-    cContext.closePath();
-    cContext.stroke();
-
-    cContext.beginPath();
-    cContext.moveTo(x, y - 5);
-    cContext.lineTo(x, y + 5);
-    cContext.closePath();
-    cContext.stroke();
+    cContext.arc(x, y, 1, 0, 2 * Math.PI, false);
+    cContext.fillStyle = 'white';
+    cContext.fill();
 };
 
 document.addEventListener("facetrackingEvent", function(e) {
-    drawIdent(canvasCtx, e.x, e.y);
+    //drawIdent(canvasCtx, e.x, e.y);
 }, false);
 
 document.addEventListener("headtrackingEvent", function(e) {
