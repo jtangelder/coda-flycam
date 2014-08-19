@@ -1,7 +1,7 @@
 ﻿// Based on FastKat by Andrea Doimo http://www.omiod.com/games/fastkat.php
 // Further modified by Audun Mathias Øygard and Patrick H. Lauke
 
-var STARS = 200;
+var STARS = 400;
 var FAR = 4000;
 var SAFE = 50;
 var PHASELEN = 10000;
@@ -23,7 +23,6 @@ var options = {"opt_invincible": 0, "opt_swirlonly": 0 }; // For debugging purpo
 var lives;
 var collision;
 
-var interval, hintsTimer;
 var tmp;
 var fullscreen = false;
 
@@ -49,8 +48,6 @@ var animType;
 
 function handleKey(event) {
     if (event.keyCode == 27) {
-
-        interval = window.clearInterval(interval);
         start();
 
         if (event.preventDefault) event.preventDefault();
@@ -81,7 +78,7 @@ reset();
 
 function animate() {
 
-    videoFx();
+    //videoFx();
     loop();
 
     requestAnimationFrame(animate);
@@ -93,7 +90,7 @@ function animate() {
  * @param   imageData   target
  * @param   imageData   data1
  * @param   imageData   data2
- */
+ *//**
 function differenceAccuracy(target, data1, data2) {
     if (data1.length != data2.length)
         return null;
@@ -145,12 +142,9 @@ function videoFx() {
 
     // store the current webcam image
     lastImageData = sourceData;
-}
+}*/
 
 function start() {
-    if (interval != undefined) interval = window.clearInterval(interval);
-    if (hintsTimer != undefined) hintsTimer = window.clearInterval(hintsTimer);
-
     reset();
     maxSpeed = 50;
     initPhase(1);
@@ -160,6 +154,9 @@ function start() {
 function initPhase(ph) {
     phase = ph;
     toNextPhase = 3000 + Math.random() * PHASELEN;
+
+    phase = 1;
+
 
     if (options.opt_swirlonly == 1) phase = 3;
 
@@ -233,7 +230,6 @@ function init() {
     container.appendChild(renderer.domElement);
 
     window.addEventListener('resize', onWindowResize, false);
-
     animate();
 }
 
@@ -374,8 +370,8 @@ document.addEventListener('headtrackrStatus', function(e) {
 
 // the cross canvas
 var canvasInput = document.createElement('canvas'); // compare
-canvasInput.setAttribute('width', videoInput.clientWidth);
-canvasInput.setAttribute('height', videoInput.clientHeight);
+canvasInput.setAttribute('width', 320);
+canvasInput.setAttribute('height', 320);
 canvasInput.className = 'canvasInput';
 document.body.appendChild(canvasInput);
 
@@ -417,7 +413,6 @@ var drawIdent = function(cContext, x, y) {
 
     // clean canvas
     cContext.clearRect(0, 0, canvasInput.width, canvasInput.height);
-
     cContext.beginPath();
     cContext.arc(x, y, 1, 0, 2 * Math.PI, false);
     cContext.fillStyle = 'white';
@@ -429,6 +424,6 @@ document.addEventListener("facetrackingEvent", function(e) {
 }, false);
 
 document.addEventListener("headtrackingEvent", function(e) {
-    mouseX = e.x * 20;
-    mouseY = -e.y * 20;
+    mouseX = e.x * 40;
+    mouseY = -e.y * 10;
 }, false);
