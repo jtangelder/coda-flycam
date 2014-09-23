@@ -1,7 +1,7 @@
 ﻿// Based on FastKat by Andrea Doimo http://www.omiod.com/games/fastkat.php
 // Further modified by Audun Mathias Øygard and Patrick H. Lauke
 
-var STARS = 400;
+var STARS = 300;
 var FAR = 4000;
 var SAFE = 50;
 var PHASELEN = 10000;
@@ -146,7 +146,7 @@ function videoFx() {
 
 function start() {
     reset();
-    maxSpeed = 50;
+    maxSpeed = 80;
     initPhase(1);
     animType = "loop";
 }
@@ -347,8 +347,35 @@ function noCamera() {
     gumSupported = true;
 }
 
+var nTimer;
+var notifyEl = document.getElementById("notification");
+var nMessages = {
+	'detecting': 'Bezig met je gezicht herkennen...',
+	'redetecting': 'Bezig met je gezicht herkennen...',
+	'hints': 'Bezig met je gezicht herkennen...',
+	'whitebalance': 'Camera aan het bijstellen...',
+	'found': 'Gezicht herkent.',
+};
+
+function notify(msg) {
+	clearTimeout(nTimer);
+	notifyEl.className = 'show';
+	notifyEl.innerHTML = nMessages[msg] || msg;
+	console.log(msg);
+
+    if(msg != 'found') {
+        videoInput.className = 'show';
+    } else {
+        videoInput.className = '';
+    }
+
+	nTimer = setTimeout(function() {
+		notifyEl.className = '';
+	}, 2500);
+}
+
 document.addEventListener('headtrackrStatus', function(e) {
-    console.log(e.status);
+    notify(e.status);
     switch (e.status) {
         case 'camera found':
             gUMnCamera();
@@ -424,6 +451,11 @@ document.addEventListener("facetrackingEvent", function(e) {
 }, false);
 
 document.addEventListener("headtrackingEvent", function(e) {
+	//console.log(e.x, e.y);
+
+	e.x = Math.min(20, Math.max(-20, e.x));
+	e.y = Math.min(10, Math.max(-10, e.y));
+
     mouseX = e.x * 40;
     mouseY = -e.y * 10;
 }, false);
