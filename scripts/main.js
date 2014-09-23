@@ -47,11 +47,12 @@ var bdy = document.getElementById("body");
 var animType;
 
 function handleKey(event) {
+    // reset with escape
     if (event.keyCode == 27) {
         start();
 
-        if (event.preventDefault) event.preventDefault();
-        if (event.stopPropagation) event.stopPropagation();
+        event.preventDefault();
+        event.stopPropagation();
     }
 
     // brake with spacebar
